@@ -1,0 +1,399 @@
+Oracle Machine Learning Associate Using Autonomous Database 
+
+Overview:
+- Workspace (stores projects) > projects (logical container that contains notebooks and experiments) 
+- Collaboration -> levels of permissions [manager > developer > viewer] 
+- Reliable Oracle Artificial Intelligence-Driven Environment
+    - Collaborate
+    - Predict
+    - Analyze and Report
+    - Visualize
+- Enhanced performance and scalability
+    - Minimize or eliminate data movement for database data
+    - Redesigned familiar ML algorithms for modeling and scoring, with elastic scaling
+- Simpler solution architecture and management
+    - Avoid separately maintained analytical engines
+    - Data and model governance via Oracle-enabled security - built-in backup and recovery
+    - Flexible development/test/production architectures in cloud, on-premises, and hybrid environments
+    - Broader Oracle stack access with OAC/OAS, APEX, ODI, OCI DS
+- Empower a broader range of users with machine learning
+    - Readily available in databases 
+    - autoML: no code UI; python API; auto data prep, integrated text mining, partition models 
+    - Multiple language APIs (SQL, Python, R, REST) with third-party R and Python package support
+    - Built-in automation features in core ML algorithms
+- Simple pricing structure
+    - ML capabilities included in core product at no additional cost
+- Use Cases: 
+    - Medical outcome analysis
+    - Robot control
+    - Computational biology
+    - Risk analysis
+    - Financial fraud analysis
+    - Predictions while commuting
+    - Videos surveillance
+    - Social media services
+    - Email spam and malware filtering
+- Industries: 
+    - Financial services
+    - Health care and life sciences
+    - Oil and gas
+    - Transportation
+    - Marketing and sales
+    - Government
+    - Retail
+- What use Oracle ML: 
+    - Improved machine learning algorithms
+    - Improved data capture, networking, and faster computers
+    - Existing software too complex to write by hand
+    - New sensors and I/O devices
+    - Demand for self-customization for users and the environment
+    - Difficulty of extracting knowledge from human experts, which led to the failure of expert systems in the 1980s
+- Features:
+    - Collaborative notebook UI for data scientists
+    - Packaged with Oracle Autonomous Data Warehouse, Oracle Autonomous Transactional Processing, and Autonomous Oracle Analytics Cloud, A JSON DB
+    - Easy access to shared notebooks, templates, permissions, and schedulers
+    - Access to 30+ parallel, scalable, in-database implementations of algorithms
+    - SQL, PL/SQL, R, Python scripting language support
+    - Support for deployments of Enterprise Machine Learning methodologies in ADW
+- Components: 
+    - OML User Administration application
+        - Web based UI 
+    - OML application: 
+        - Web based applications
+    - OML4SQL API: Build ML models and score data with no data movement
+    - OML4Py API: Leverage the database as a high-performance compute engine from Python with in-database ML
+    - OML4R API: Leverage the database as a high-performance compute engine from R with in-database ML
+    - OML Notebooks: SQL, PL/SQL, Python, R, and markdown interpreters
+    - OML AutoML UI: No-code automated modeling interface
+    - OML Services: RESTful model management and deployment
+    - Oracle Data Miner: SQL Developer extension with a drag-n-drop interface for creating ML methodologies
+- Machine learning algorithms in the database kernel software
+    - Eliminate data movement
+    - Simplify solution architectures
+    - Speed solution development and deployment
+    - Augment applications and dashboards quickly and easily
+- Over 30 scalable in-database machine learning algorithms via SQL, R and Python APls and automated no-code user interfaces Machine learning functionality in Oracle's converged database with spatial, graph, blockchain, JSON
+- Easily use with OAC, Oracle APEX, OCI DS, ODI, and others
+- Oracle Machine Learning database features included with Oracle Database and Oracle Autonomous Database
+- Steps in ML process: 
+    - Business understanding <> data understanding > Data preparation <> Modeling > Evaluations [> BU] > deployment 
+
+Oracle Machine Learning for Python: 
+- Develop, refine, and deploy user-defined Python functions and store Python objects in the database.
+- Run overloaded Python functions and use native Python syntax to manipulate database tables and views.
+- Build in-database machine learning models and score data using a native Python API.
+- Use Automated Machine Learning to enhance user productivity and machine learning results.
+- Use Embedded Pvthon Execution to run user-defined Pvthon functions in Python engines spawned and managed by the database environment.
+- Use Oracle Database as an HPC environment.
+- Use in-database parallelized and distributed algorithms.
+- Run Python user-defined functions in database-spawned Python engines.
+- Store Python objects and user-defined functions in the database.
+- Use automated machine learning (AutoML)
+- and model explainability (MLX).
+- Advantages: 
+    - Operate on database data from Python without using SQL
+    - Minimize data movement
+    - Keep data secure
+    - Score data directly in the database
+    - Automate common machine learning tasks
+    - Save and manage Python objects using the OML4Py data store
+    - Run user-defined Python functions in database-spawned and controlled Python engines
+    - Leverage additional Python packages to complement in-database functionality through embedded Python execution
+    - Deploy user-defined Python functions using SQL or REST APIs with optional data-parallel and task-parallel invocation
+
+Workspaces and Projects
+
+Creating workspaces and projects for use with OML notebooks and AutoML UI :
+- AutoML: Create and run AutoML Experiments
+- Models: Manage and Deploy ML Models
+- Scratchpad: Run Scratchpad
+- Notebooks: The place for data Discovery and analytics
+- Jobs: Schedule notebooks to run at a certain time
+- Examples: She work window 
+- Workspace >> Project 
+- Creating a new project in OML:
+    - A project is a container for storing your notebooks and experiments.
+    - You may have multiple workspaces, and a workspace can have multiple projects.
+    - Initial workspace and the default project created automatically
+    - You can grant access to your workspace to others users
+- Creating Workspace:
+    - Area to store projects and share and collaborate with users
+    - For collaborating with other users, you can provide different levels of permission, such as Viewer, Developer, or Manager.
+- OML three times of permissions: 
+    - Manager 
+    - Developer 
+    - Viewer 
+- In the console home page, you can log your recent high - level activities 
+- Quick links to important interfaces 
+- Notebook: interface where you create complex queries using SQL commands
+- You can move projects among workspaces (only managers get to to this) 
+
+SQL Scripts in OML
+
+- SQL script Scratchpad: 
+    - Low-overhead tool that simplifies SQL and PL/SQL development
+    - Supports SQL, R, Python and markdown
+    - Uses a direct JDBC connection to a database
+    - Full SQL editing capabilities, including color coding of SQL
+    - Tabular formatted results window
+    - Execution Plan access - graphical and tabular explain plan
+    - Access to the history of all SQL commands run
+    - Execution time and rows returned
+    - Option to cancel a long running query
+    - Create SQL script >> saved as .json >> share SQL with other users
+- %sql > sql scripts
+- %script > plsql scripts
+- %python > Python scripts 
+- %r > runs R scripts 
+- You can write, run, visualize, export and import SQL scripts 
+
+Restrictions on SQL Commands: 
+- ALTER PROFILE 
+- ALTER TABLESPACE 
+- ALTER TABLE
+- CREATE DATABASE LINK 
+- CREATE TABLESPACE 
+- DROP TABLESPACE 
+- Oracle db E.E. has limited ADW features; not designed for executing SQL commands executed by ML 
+- Restrictions in Real app testing, db vault, OLAP, industry data models —> RESTRICTED ORACLE OPTIONS
+- Restrictions to db init parameters: 
+    - Autonomous Data Warehouse configures database initialization parameters based on the compute and storage capacity.
+    - There is no need to set any initialization parameters to start using your service. But, you can modify some parameters as per the requirement.
+- Init parameters that can be modified: 
+    - APPROX_FOR_AGGREGATION
+    - APPROX_FOR_COUNT_DISTINCT
+    - APPROX_FOR_PERCENTILE
+    - NLS_LANGUAGE
+    - TIME_ZONE: Allowed only with ALTER SESSION
+
+AutoML
+
+- AutoML Pipeline:
+    - Dataset > Algorithm ranking [identify top k algorothms] > adaptive sampling > feature selection > model tuning > feature prediction impact 
+- Algorithm ranking:
+    - dataset> extract data characteristics > involve prediction models > rank algorithms based on predicted scores > top K algorithms
+- Adaptive sampling:
+    - Dataset and ML algorithm > [identify optimized sample > measure model score][optimize until convergence] > Reduced dataset 
+- Feature selection :
+    - Dataaset, ML Algorithm > [extract dataset characteristics, rank features > predict best feature set > measure model score ][repeat for multiple ranking algorithms] > reduced dataset 
+- Model tuning:
+    - New dataset, ML algorithm > [parameter choice> measure model score, prediction models > next parameter choice ][optimize until convergence] > tuned model 
+- Quick actions options on homepage: AutoML, Models, scratchpads, notebook, jobs, examples 
+- AutoML UI experiment can be run with 2 possible options: Faster results and better accuracy 
+
+AutoML with OML4Py 
+- Import:
+    - Import OML 
+    - From OML import autoML 
+- Data > auto algorithm selection > auto feature selection > auto model selection > OML model 
+- Algorithm selection: 
+    - oml.automl.AlgorithmSelection class uses the characteristics of the dataset and prediction objective to automatically rank the best algorithms from the set of supported Oracle Machine Learning algorithms
+    - No single model works best for all modeling problems
+    - oml.automl.AlgorithmSelection supports classification and regression algorithms. We specify a data set and the number of algorithms to evaluate.
+    - The select() method of the class returns a sorted list of the top 6 algorithms and their predicted rank
+- Feature Selection: 
+    - oml.automl.FeatureSelection class to quickly identify the most relevant feature subsets for a training data set and an OML algorithm
+    - Uses several feature-ranking algorithms to identify the best feature subset
+    - The object automatically selects the most relevant features for a data set and model
+    - Oracle advanced meta-learning techniques quickly prune the search space of this feature selection optimization
+    - Reduce () function to get reduced feature subset 
+- Model Tuning:
+    - oml.automl.ModelTuning class tunes hyperparameters of specified classification or regression algorithm and training data 
+    - Uses highly parallel asynchronous gradient-based hyperparam optimization algorithm to tune hyperparams in oracle ML algorithm 
+    - Hyperparameter is a setting that influences or controls this behavior of the algorithm on the provided data to produce a model 
+    - Supports classification and regression algorithms 
+    - tune() is the function used to tune the algorithm [ specify dataset and number of algorithms] 
+    - Most time consuming phase in the autoML process 
+
+Supervised Learning algorithms:
+- Regression
+- Logistic Regression
+- Classification
+- Naive Bayes Classifiers
+- K-NN (k nearest neighbors)
+- Decision Trees
+- Support Vector Machine
+- Logistic regression 
+- Polynomial regression 
+- Apriori algorithm 
+- Principal component algorithm 
+- Gradient boosting 
+- Vector 
+
+Unsupervised learning Algorithms: 
+- K-means clustering 
+- Cluster analysis 
+- Hierarchical clustering 
+- Anomaly detection
+- K-nearest neighbors algorithm
+- Apriori algorithm
+- Normal distribution
+- Independent component analysis
+
+OML AutoML UI Features:
+- Powerful and easy-to-use UI for machine learning modeling
+- Model deployment with a few clicks to OML
+- Services with scoring REST endpoints
+- Nonexpert data professionals empowered with in-database machine learning
+- Experiment progress monitoring
+- Automation of key modeling steps
+- Data scientist productivity tool
+- Minimal user input required: Prepared data table and target column
+- Notebook generation of selected models using OML4Py API in OML Notebooks
+- Creating the AutoML UI Experiment: 
+    - An Experiment is a work unit that contains the definition of the:
+        - Data source
+        - Prediction target
+        - Prediction type
+    - After an Experiment runs successfully, it presents a list of machine learning models.
+    - Select any model for deployment or use it to create a notebook based on the selected model.
+
+OML NOTEBOOKS: 
+
+- A web-based interface for:
+    - Data analysis
+    - Data discovery
+    - Data visualization
+    - Collaboration
+- Oracle Machine Learning easy access to in-database library of ML algorithms and functionality
+- After creating a notebook, open it and write commands to fetch data from the data source, and run it for data discovery and data visualization.
+- Set the context with the project with which vour notebook is associated. SOL statements are SELECT, INSERT, UPDATE, DELETE, CREATE, and DROP.
+- You must bind a notebook to an interpreter to fetch data from a db to a data source: default interpreter: Low
+- Developer can only create, update, run and delete notebooks that they own or are shared.
+
+Forms in Notebooks:
+- Allows you to dynamically retrieve values as defined in the notebook
+- To create a text input form:
+    - In a SQL statement, define the text input form by using the syntax.
+    - $ {formName}
+- For example, run the SQL statement:
+    - SELECT * FROM ALL_OBJECTS WHERE OBJECT_TYPE = ‘${OBJ}’;
+- These expand to the proper value when applied
+    - Creating Select Forms in Notebooks
+    - The name of the principal that tagged the resource.
+- To create a select form:
+    - Open the notebook in which you want to add the select form
+- Syntax for select form:
+    - ${formName=defaultValue,option1loption2...).
+- Example:
+    - SELECT * FROM ALL_OBJECTS WHERE OBJECT_TYPE = '$ {OBJ=INDEX, INDEX| TABLE I VIEW | SYNONYM}'
+- Creating Check Box Forms in Notebooks:
+    - Supports multiple selection of inputs in a paragraph.
+    - The inputs are available as check box options in the notebook.
+    - To create a check box form:
+        - Open the notebook in which you want to add the check box form.
+    - Syntax for check box form:
+        - $ {checkbox: formName=defaultValuel|defaultValue2...,option1|option2...}
+    - Example:
+        - SELECT '$ checkbox: whichcolumn=OWNER|OBJECT TYPE, OWNER| OBJECT_NAME | OBJECT_TYPE | CREATED |STATUS ' FROM ALL OBJECTS WHERE OBJECT TYPE IN ('VIEW','TABLE','INDEX','SYNONYM') :
+    - Output formats supported by ‘SET SQLFORMAT’ command: 
+        - CSV
+        - HTML
+        - JSON
+        - FIXED
+        - DEFAULT
+        - LOADER 
+
+VERSIONING OF NOTEBOOK
+- You can version or create a backup of a notebook, experiment on it, and revert to the original notebook if you need to.
+    - Revert version 
+    - Delete 
+    - New notebook 
+
+Templates
+
+- The Oracle Machine Learning Templates UI enables you to collaborate with other users by:
+    - Sharing work
+    - Publishing the work as reports
+    - Creating notebooks from templates
+- Store the notebooks as templates, share notebooks, and provide sample templates to other users.
+- Types of templates:
+    - Personal templates
+    - Shared templates
+    - Example templates
+- Personal Templates: 
+    - View selected templates in read-only mode
+    - Create new notebooks from selected templates
+    - Edit selected templates
+    - Share selected notebook templates in Shared Templates
+    - Delete selected notebook templates
+- OML provides over 130 example template notebooks : python, R, SQL, REST > supported languages in these examples
+- The Example Templates page displays the:
+    - Template name
+    - Description
+    - Number of likes
+    - Number of creations
+    - Number of static views
+- You can’t create a notebook from any one of the example templates provided by oracle, nor can you edit or delete an example template 
+- Export a notebook as a .json and later import 
+- Shared templates: 
+    - You can share notebook templates with all authenticated users.
+    - The notebook templates you create from existing notebooks are available in Templates.
+    - The Shared Templates page tracks notebook templates when:
+        - Liking templates
+        - Creating notebooks from templates
+        - Viewing templates
+    - The Shared Templates page displays the:
+        - Template name
+        - Description
+        - Number of likes
+        - Number of creations
+        - Number of static views
+
+Jobs in OML
+
+- Can duplicate existing jobs after running them 
+- You can create, edit, duplicate, stop or delete jobs 
+- The Jobs page lists all the jobs created, job name, notebook, owner of the job, last start date, next run date, status, and schedule.
+- You can schedule jobs to to be run at anytime 
+- You can only create jobs on notebooks that you own or that are shared with you 
+- Input: Name (128 bytes), notebook, start datetime, repeat frequency, max no.of runs, max failures, timeout
+- You can view the historical logs of any particular job in the Job Log interface, not the jobs page. 
+- You can view a log in a read-only notebook.
+- To view the history of a job, select the job and click the View icon.
+- To delete a particular job log, select it and click the Delete icon.
+- A developer who is not authenticated cannot create a job on a shared notebook 
+- Start button in OML notebook is enabled for jobs in “scheduled status” 
+
+Administering OML
+
+- Oracle Machine Learning is managed at the system level and at the application level by an administrator.
+- Administrator:
+    - Creates, edits, and deletes Oracle Machine Learning user accounts
+    - reassigns user workspace
+- Developer: 
+    - Default user role; 
+    - allows you to create and run notebooks, run SQL statements, create SQL scripts, create jobs to schedule, and run notebooks
+- Workflow for managing OML :
+    - Tasks to be performed by an administrator only:
+        - User account and password creation
+        - Connection groups: View and reset
+        - Compute resource: View
+        - User data administration: Delete all users, all user-related objects, such as workspace, projects, and notebooks, and workspace reassignment
+- User Data:
+    - On the User Data page, you can view existing user data, reassign, and delete it.
+    - The page lists details of an Oracle Machine Learning user, such as their name, role, comments, and last updated date.
+    - You can:
+        - Delete user data
+        - Reassign workspaces and templates
+- Compute Resources:
+    - Compute resource refers to services to which a notebook Interpreter connects.
+    - The Compute Resources page displays the list of compute resources along with the name of each resource (high, low, med capability), its type, comments, and last updated details.
+    - To view details of each compute resource, click the compute resource name.
+    - Note: You must have the administrator role to access the Compute Resources page
+- The ADMIN user creates the user account and user credentials for Oracle Machine Learning in the User Management interface.
+- You must have the administrator role to access the Oracle Machine Learning User Management interface.
+
+Connection Groups: 
+- Also known as notebook interpreter set / Zeppelin interpreter set, is a collection of database connections
+- You can click refresh button only if:
+    - You rename the pluggable database 
+    - If you do a wallet rotation 
+- Global Connection Group: Created automatically when a new database is provisioned. Comprises:
+    - Compute Resource definition
+    - Connection Group definition
+- When you reset a selected connection, all the connection supported by the interpreter are closed and all notebooks using that connection are canceled 
+- Editing an oracle database interpreter connection:
+    - A reference to a compute resource is created when defining a db interpreter connection 
+    - Only admin user can manage connection groups
+    - This reference contains all the connection-related information about the interpreter 
