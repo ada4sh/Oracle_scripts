@@ -148,5 +148,40 @@ Patch Id : 32218454
 DBROOT_2021Mar30_12_52_30.log
         Status : SUCCESS
 
+---------------------------------------------------------------------------------------------
+--- APPLY PATCHES - QUICK NOTES ---
+
+* NOTE: BELOW STEPS ARE NOT FOR GRID INFRASTRUCTURE OR RAC DB *
+applying patch --> Database Release Update : 19.9.0.0.201020 (31771877) to Database Release Update : 19.3.0.0.190416 (29517242)
+
+KEEP README FILE AS REFERENCE
+
+1. identify oracle patch number required and make sure $ORACLE_HOME/OPatch is added to the path
+2. download patch onto my computer from support.oracle.com (wget or manually add using winSCP)
+3. check opatch version and see if you have minimum required version and shut down database
+	- if not, find out latest version from the readme file when you download the patch's zip file
+	- download the opatch zip file
+	- make sure to shut down database and related activity by killing running processes (ps -fu | grep oracle)
+	- rename the &ORACLE_HOME/OPatch to OPatch_backup (just to keep a backup)
+	- cd $ORACLE_HOME and then unzip the opatch download file
+	- check opatch version with $ORACLE_HOME/OPatch/opatch version
+4. create a separate folder for the patch 
+mkdir -p /u01/october2020patch
+5. unzip the patch zipfile here 
+6. go to the directory:
+cd 31771877
+7. run a precheck:
+opatch prereq CheckConflictAgainstOHWithDetail -ph ./
+8. Make sure you are in the diectory mentioned above and then apply patch: (OS LEVEL)
+opatch apply
+9. post installation, startup the database and check if pdbs are up as well if its a multitenant db
+10. go to OPatch directory and apply patch on db level also:
+./datapatch -verbose
+11. check if patch is applied at the dba level:
+SQL> set serveroutput on;
+sql> exec dbms_qopatch.get_sqlpatch_status;
+see if the latest version has "SUCCESS" as status
+
+NOTE: if a dataguard exists for a db, then skip step 10 only (./datapatch -verbose) because once both databases are opened after 'opatch apply', then the standby db will get the datapatch from redo logs after applying on primary db.
 PL/SQL procedure successfully completed.
 
