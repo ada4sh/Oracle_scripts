@@ -1,0 +1,343 @@
+1: RMAN FULL DATABASE BACKUP SCRIPT: (SUCCESS!)
+
+configure backup optimization on;
+configure controlfile autobackup on;
+configure controlfile autobackup format for device type disk to '/u03/RMAN_practice/archiva/backup/controlfile_%F';
+configure maxsetsize to unlimited;
+configure device type disk parallelism 4;
+run
+{
+allocate channel c1 type disk format '/u03/RMAN_practice/archiva/backup/%I-%Y%M%D-%U' maxpiecesize 3G;
+allocate channel c2 type disk format '/u03/RMAN_practice/archiva/backup/%I-%Y%M%D-%U' maxpiecesize 3G;
+allocate channel c3 type disk format '/u03/RMAN_practice/archiva/backup/%I-%Y%M%D-%U' maxpiecesize 3G;
+allocate channel c4 type disk format '/u03/RMAN_practice/archiva/backup/%I-%Y%M%D-%U' maxpiecesize 3G;
+backup as compressed backupset incremental level 0 check logical database plus archivelog;
+release channel c1 ;
+release channel c2 ;
+release channel c3 ;
+release channel c4 ;
+}
+
+-------------------------------------------------------------------------------------------------
+2: BACKUP TABLESPACES: (SUCCESS!)
+
+configure controlfile autobackup on;
+configure controlfile autobackup format for device type disk to '/u03/RMAN_practice/archiva/backup/controlfile_%F';
+configure maxsetsize to unlimited;
+configure device type disk parallelism 4;
+run
+{
+allocate channel c1 type disk format '/u03/RMAN_practice/archiva/backup/TS_backup_%I-%Y%M%D-%U' maxpiecesize 3G;
+allocate channel c2 type disk format '/u03/RMAN_practice/archiva/backup/TS_backup_%I-%Y%M%D-%U' maxpiecesize 3G;
+backup tablespace ADARSH_TS;
+release channel c1 ;
+release channel c2 ;
+}
+
+-------------------------------------------------------------------------------------------------
+3: BACKUP DATAFILE: (SUCCESS!)
+
+configure controlfile autobackup on;
+configure controlfile autobackup format for device type disk to '/u03/RMAN_practice/archiva/backup/%F';
+configure maxsetsize to unlimited;
+configure device type disk parallelism 4;
+run
+{
+allocate channel c1 type disk format '/u03/RMAN_practice/archiva/backup/B_DF_5_%I-%Y%M%D-%U' maxpiecesize 3G;
+allocate channel c2 type disk format '/u03/RMAN_practice/archiva/backup/B_DF_5_%I-%Y%M%D-%U' maxpiecesize 3g;
+backup datafile 5;
+release channel c1 ;
+release channel c2 ;
+}
+
+-------------------------------------------------------------------------------------------------
+4: CROSSCHECK ARCHIVELOG and DELETE ARCHIVE LOGS: (SUCCESS!)
+
+DELETE ARCHIVELOG ALL COMPLETED BEFORE 'sysdate-1';
+CROSSCHECK ARCHIVELOG ALL;
+DELETE EXPIRED ARCHIVELOG ALL;
+
+-------------------------------------------------------------------------------------------------
+5: BACKUP ARCHIVELOGS USING RMAN: (SUCCESS!)
+
+---  Backup all archivelogs known to controlfile
+
+backup archivelog all;
+
+-- Backup all archivelogs known to controlfile and delete them once backed up
+
+backup archivelog all delete input ;
+
+-- Backup archivlogs known to controlfile and the logs which haven't backed up once also
+
+backup archivelog all not backed up 1 times;
+
+-------------------------------------------------------------------------------------------------
+6: TRACE, LISTS: (SUCCESS!)
+
+spool trace to '/tmp/rman_trace.out';
+report schema; -- lists all datafiles and tempfiles in the database. 
+list backup summary; -- list of all backups
+list backup of datafile 1; -- list of al backups of datafile 1
+list copy of datafile 1; -- list of all copies of datafile 1
+spool trace off;
+
+-------------------------------------------------------------------------------------------------
+7: RECOVER DROPPED TABLE UNTIL A PARTICULAR TIME:  
+
+RMAN>recover table NIKHI.EMP2 until time "to_date('12/10/2020 20:00:00','dd/mm/yyyy hh24:mi:ss')"
+
+auxiliary destination ‘/u03/arch/TEST/BACKUP’
+
+datapump destination ‘/u03/arch/TEST/BACKUP';
+
+-------------------------------------------------------------------------------------------------
+8: CHECK THE SYNTAX OF RMAN COMMANDS:
+
+$ rman checksyntax
+
+-------------------------------------------------------------------------------------------------
+9: RMAN INCREMENTAL DB BACKUP: (SUCCESS!)
+
+configure backup optimization on;
+configure controlfile autobackup on;
+configure controlfile autobackup format for device type disk to '/u03/RMAN_practice/archiva/backup/%F';
+configure maxsetsize to unlimited;
+configure device type disk parallelism 4;
+run
+{
+allocate channel c1 type disk format '/u03/RMAN_practice/archiva/backup/%I-%Y%M%D-%U' maxpiecesize 3G;
+allocate channel c2 type disk format '/u03/RMAN_practice/archiva/backup/%I-%Y%M%D-%U' maxpiecesize 3G;
+allocate channel c3 type disk format '/u03/RMAN_practice/archiva/backup/%I-%Y%M%D-%U' maxpiecesize 3G;
+allocate channel c4 type disk format '/u03/RMAN_practice/archiva/backup/%I-%Y%M%D-%U' maxpiecesize 3G;
+backup as compressed backupset incremental level 1 check logical database plus archivelog;
+release channel c1 ;
+release channel c2 ;
+release channel c3 ;
+release channel c4 ;
+}
+
+-------------------------------------------------------------------------------------------------
+10: RESTORE AND RECOVER DATABASE TO A SPECIFIC DATE: (trace the process as good practice)
+
+RUN
+{
+SET UNTIL TIME "TO_DATE('11-OCT-2020 01:00:00', 'DD-MON-YYYY HH24:MI:SS')";
+RESTORE DATABASE;
+RECOVER DATABASE;
+ALTER DATABASE OPEN RESETLOGS;
+}
+
+-------------------------------------------------------------------------------------------------
+11: GET RMAN BACKUP JOB DETAILS:
+
+SET PAUSE ON
+SET PAUSE 'Press Return to Continue'
+SET PAGESIZE 60
+SET LINESIZE 300
+SET TRIMSPOOL ON
+ 
+COL compression_ratio for 99999 head Cmprsn|Ratio
+COL elapsed for 9999.99 head Elapsed|Mins
+COL end_time for a18 head "End Time"
+COL hrs for 999,999
+COL input_type head "Input Type"
+COL session_key for 9999999 head Session|Key
+COL start_time for a18 Head "Start Time"
+COL status for a23 head "Job Status"
+ 
+select session_key,input_type,status,
+        to_char(start_time,'dd/mm/yy hh24:mi:ss') start_time,
+        to_char(end_time,'dd/mm/yy hh24:mi:ss') end_time,
+        (elapsed_seconds/60) elapsed,COMPRESSION_RATIO
+from v$rman_backup_job_details
+order by session_key DESC
+/
+
+-------------------------------------------------------------------------------------------------
+12: DUPLICATE/CLONE DATABASE 
+
+[oracle@adarsh ADARSHVB]$ pwd
+/u01/app/oracle/product/19.0.0/dbhome_1/network/admin
+[oracle@adarsh admin]$ mkdir TSTCLONE
+[oracle@adarsh admin]$ cp ADARSHVB/* TSTCLONE
+[oracle@adarsh admin]$ cd TSTCLONE
+[oracle@adarsh TSTCLONE]$ mkdir tde_keys
+[oracle@adarsh TSTCLONE]$ cat sqlnet.ora
+[oracle@adarsh TSTCLONE]$ cp /u01/app/oracle/admin/ADARSHVB/wallet/* tde_keys
+[oracle@adarsh TSTCLONE]$ pwd
+cd /u01/app/oracle/product/19.0.0/dbhome_1/network/admin/TSTCLONE
+[oracle@adarsh TSTCLONE]$ vi sqlnet.ora
+< update key location to tde_keys > 
+ENCRYPTION_WALLET_LOCATION=
+ (SOURCE=
+  (METHOD=FILE)
+   (METHOD_DATA=
+    (DIRECTORY=/u01/app/oracle/product/19.0.0/dbhome_1/network/admin/TSTCLONE/tde_keys)
+   )
+ )
+[oracle@adarsh ~]$ env > TSTCLONE.env
+[oracle@adarsh ~]$ vi TSTCLONE.env
+< change ORACLE_SID, ADD TNS_ADMIN path which leads to new sqlnet.ora file, remove everything unecessary, export all vartiables >
+[oracle@adarsh ~]$ . TSTCLONE.env -- setting the env -- adding TSTCLONE in /etc/orateb is not mandatory at all, when you login, use '. TSTCLONE.env' to set env
+[oracle@adarsh dbs]$ pwd -- duplicate session and go here 
+/u01/app/oracle/product/19.0.0/dbhome_1/dbs
+< copy orapw file from parent db for your new db >
+SQL> create pfile='initTSTCLONE.ora' FROM spfile;
+
+File created.
+[oracle@adarsh dbs]$ vi initTSTCLONE.ora
+:g/ADARSHVB/s//TSTCLONE/g -- replace adarshvb with tstclone
+< add the below line in the beginning> 
+*.db_create_file_dest='/u02/oradata/TSTCLONE'
+[oracle@adarsh ~]$ mkdir -p /u01/app/oracle/admin/TSTCLONE/adump -- create audit file path 
+[oracle@adarsh ~]$ mkdir -p /u02/oradata/TSTCLONE -- create path for control file and other datafiles
+[oracle@adarsh ~]$ mkdir -p /u02/oradata/TSTCLONE/arch -- archive log file path 
+[oracle@adarsh ~]$ mkdir -p /u03/tstclone_flashback -- db recovery file destination
+[oracle@adarsh dbs]$ orapwd file=orapwTSTCLON1 password=dba\$TSTCLONE2020 -- create a password file alongside initfile before cloning -- PASSWORD IS SAME AS THE SOURCE SYS'S USER
+SQL> select DBID, name from v$database;
+      DBID NAME
+---------- ---------
+ 729257989 ADARSHVB
+SQL> startup nomount pfile=$ORACLE_HOME/dbs/initTSTCLONE.ora -- put the db in nomount mode -- if init file is not in default location, you should sepcify location as such
+[oracle@adarsh ~]$ vi clonedb_rman_tstclone.rman
+connect target sys/dba$ADARSHVB2020@//adarsh:1521/ADARSHVB
+connect auxiliary /
+run {
+allocate channel c1 device type disk;
+allocate auxiliary channel aux1 device type disk;
+
+set until time "to_date('24-OCT-2020 14:00:00', 'dd-MON-yyyy hh24:mi:ss')";
+
+duplicate database ADARSHVB dbid 729257989 to TSTCLONE NOFILENAMECHECK;
+
+}
+[oracle@adarsh ~]$ nohup rman cmdfile=clonedb_rman_tstclone.rman log=clonedb_rman_tstclone.log &
+< NOTE: file creation dest was given as /u02/oradata/TSTCLONE but rman created another TSTCLONE folder after the path mentioned. note that we dont have to create a TSTCLONE directory, it will do it on its own >
+
+-------------------------------------------------------------------------------------------------
+13: DUPLICATE/CLONE DB FROM ACTIVE DATABASE
+
+< finish env parameters, pw file, init parameters and directories and basically everything except the rman script>
+[oracle@adarsh TSTCLON1]$ pwd
+/u01/app/oracle/product/19.0.0/dbhome_1/network/admin/TSTCLON1
+< set up second listener as below | add the following entry to the new listener.ora file created in the directory below>
+LISTENER2 =
+   (DESCRIPTION_LIST =
+    (DESCRIPTION =
+      (ADDRESS = (PROTOCOL = TCP)(HOST = 10.0.0.2)(PORT = 1529))
+    )
+  )
+SID_LIST_LISTENER2=
+   (SID_LIST=
+      (SID_DESC=
+         (GLOBAL_DBNAME=TSTCLON1)
+         (ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1)
+         (sid_name=TSTCLON1))
+   )
+ < set new env>
+[oracle@adarsh TSTCLON1]$ lsnrctl start LISTENER2
+< for active database cloning, rman script looks a little like this > 
+connect target sys/dba$TSTCLONE2020@//adarsh:1521/TSTCLONE;
+connect auxiliary sys/dba$TSTCLONE2020@//adarsh:1529/TSTCLON1;
+run {
+allocate channel c1 device type disk;
+allocate auxiliary channel aux1 device type disk;
+
+set newname for datafile 1 to '/u03/TSTCLON1/DATAFILE/system01.dbf';
+set newname for datafile 2 to '/u03/TSTCLON1/DATAFILE/sysaux01.dbf';
+set newname for datafile 3 to '/u03/TSTCLON1/DATAFILE/undo01.dbf';
+set newname for datafile 4 to '/u03/TSTCLON1/DATAFILE/adarshts01.dbf';
+set newname for datafile 5 to '/u03/TSTCLON1/DATAFILE/adarshts02.dbf';
+set newname for datafile 6 to '/u03/TSTCLON1/DATAFILE/nikhits01.dbf';
+set newname for datafile 7 to '/u03/TSTCLON1/DATAFILE/tester01.dbf';
+
+duplicate database to TSTCLON1 from active database skip tablespace TESTER NOFILENAMECHECK;
+
+}
+
+[oracle@adarsh ~]$ nohup rman cmdfile=duplicate_tstclon1.rman log=duplicate_tstclon1.log &
+[oracle@adarsh ~]$ tail -f duplicate_tstclon1.log -- to monitor the process
+
+------------------------------------------------------------------------------------------------- 
+14: DUPLICATE ACTIVE DATABASE WHEN DB IS IN NO ARCHIVE LOG MODE 
+
+< copy sqlnet.ora, trasparent keys, listener.ora >
+< update sqlnet.ora with wallet address >
+< set env and create orapw file, initfile - update parameters and add required directories >
+< after setting new env and init parameters, change listener name and port number in listener.ora file, start new listener using lsnrctl start <name> command >
+< To turn off archive log mode on db... >
+SQL> shut immediate;
+	startup mount;
+	alter database noarchivelog;
+	alter database open;
+	archive log list;
+< Used the same script as above but chenged whats necessary >
+-- when duplicating a database when it is in mount mode, then you would have to point to the catalog file which is in undo tablespace
+< open initfile and add this at the end...>
+*.undo_tablespace='SYS_UNDOTS'
+[oracle@adarsh ~]$ nohup rman cmdfile=duplicate_tstclon2.rman log=duplicate_tstclon2.log &
+[oracle@adarsh ~]$ tail -f duplicate_tstclon2.log -- to monitor the process
+
+-------------------------------------------------------------------------------------------------
+15: CREATE STAND-BY DATABASE FROM ACTIVE DATABASE
+
+
+NOTE:
+
+<settings for primary>
+--- log_archive_config parameter enables sending and receiving of archive logs to remote dest
+----DG_CONFIG - need to specify the list of db_unique_name of both primary and standby.
+alter system set log_archive_config='DG_CONFIG=(ADARSHVB,TSTCLON3)' scope=BOTH;
+
+---log_archive_dest_2 parameter defines the archive destination of standby
+--- ASYNC - This is used for maximum performance mode(DEFAULT) .Means redo logs generated in primary need not be shipped/applied in standby
+alter system set log_archive_dest_2='SERVICE=TSTCLON3 LGWR ASYNC VALID_FOR=(ONLINE_LOGFILES,PRIMARY_ROLE) DB_UNIQUE_NAME=TSTCLON3' scope=BOTH;
+
+alter system set log_archive_dest_state_2='ENABLE' scope=BOTH;
+alter system set log_archive_dest_state_1='ENABLE' scope=BOTH;
+
+--- Tns entry name for primary
+alter system set fal_client='ADARSHVB' scope=BOTH;
+
+--- tns entry name for primary -- i.e It will fetch the archives from standby .
+alter system set fal_server='TSTCLON3' scope=BOTH;
+
+<settings for standby>
+log_archive_config='DG_CONFIG=(ADARSHVB,TSTCLON3)'
+
+--- in the initfile (primary):
+*.log_archive_config='DG_CONFIG=(PROD,PRODSBY)'
+*.log_archive_dest_1='LOCATION=/uv1249/arch/PROD VALID_FOR=(ALL_LOGFILES,ALL_ROLES) DB_UNIQUE_NAME=PROD'
+*.log_archive_dest_2='SERVICE=PRODSBY LGWR ASYNC VALID_FOR=(ONLINE_LOGFILES,PRIMARY_ROLE) DB_UNIQUE_NAME=PRODSBY'
+*.log_archive_dest_state_2='ENABLE'
+*.log_archive_format='arch_PROD_%t_%s_%r.arc'
+
+
+
+
+
+
+rman target=/ catalog=rcat/rcat@DBAD3V1 log=/u03/backups/ORA12AD3/catalog_rman_log
+
+
+[oracle@server-ad1-dg trace]$ find . -name '*.trc' -ctime +7 -print
+[oracle@server-ad1-dg trace]$ find . -name '*.trc' -ctime +7 -exec rm {} \;
+
+-------------------------------------------------------------------------------------------------
+// enable block change tracking:
+SQL> ALTER DATABASE ENABLE BLOCK CHANGE TRACKING using file '+DATA'; -- this is for ASM and for FS, add file location, usually data file location
+SQL>  select * from V$BLOCK_CHANGE_TRACKING;
+
+
+
+
+
+
+
+
+
+
+
+
+
