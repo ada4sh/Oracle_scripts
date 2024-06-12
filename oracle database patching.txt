@@ -1,0 +1,152 @@
+-- DATABASE PATCHING -- 
+
+Database Release Update 19.10.0.0.210119 (& associated COMBO)		Patch 32218454 (& Patch 32126828)
+GI Release Update 19.10.0.0.210119 (& associated COMBO)				Patch 32226239 (& Patch 32126842)
+
+// go to this website to see all patches 
+https://www.oracle.com/security-alerts/cpujan2021.html
+-- find database patch for all versions and then click on 'database' 
+-- once support website opens up and scroll down to find the appropriate patch number and click on it (combo patch)
+-- there are two types, database release and GI release patch (GI for grid infrastructure) 
+-- get the combo patch for GI release and OJVM 
+-- download the wget file, and either winSCP or copy the contents into a VI and save as a .sh file on the target server 
+-- once imported into home, run the .sh file (./<wgetfilename.sh> or . <wgetfilename.sh>)
+-- unzip the file after running the script 
+-- note that the patch must be unzipped to a shared directory
+-- if opatch needs to be upgraded, rename current OPatch directory as backup in both grid and oracle homes
+unzip <filename>.zip
+-- cd into the patch folder and open the read me file for scripts (precheck and then apply)
+-- precheck scripts: 
+
+OPatch Conflict check scripts: (for grid infrastructure) :  as grid user for GI home
+$ORACLE_HOME/OPatch/opatch prereq CheckConflictAgainstOHWithDetail -phBaseDir /u01/odaPatchingTempDir/32126842/32226239/32218454
+
+Error NOTE:
+The details are:
+Reason -
+Superset Patch 32218454 has
+Subset Patch 31771877 which has overlay patches [31465389] and these overlay patches conflict with Superset Patch
+		- there was an error, review the log file 
+		[Mar 27, 2021 3:25:29 PM] [INFO]    Files in use by a process: /u01/app/19.0.0.0/grid/bin/oracle PID( 35906 61280 61285 61291 61296 61
+		304 61309 61319 61328 61333 61338 61343 61348 61353 61355 61363 61374 61379 61384 61389 61395 61400 61405 61410 61415 61420 61425 6143
+		0 61435 61441 61446 61721 61726 61762 61992 68272 70703 70719 70738 70777 70784 70789 70799 70808 70813 70824 70829 70837 70845 70853
+		70862 70868 70880 71093 71104 71105 71171 71180 71185 71187 71198 71200 71209 ) -- this means, the GI home is not properly shut down and some processes are still running
+		- FIX: stop Grid infrastructure services (this works or rac also )
+		/u01/app/19.0.0.0/grid/bin/crsctl stop crs -f
+
+$ORACLE_HOME/OPatch/opatch prereq CheckConflictAgainstOHWithDetail -phBaseDir /u01/odaPatchingTempDir/32126842/32226239/32222571
+$ORACLE_HOME/OPatch/opatch prereq CheckConflictAgainstOHWithDetail -phBaseDir /u01/odaPatchingTempDir/32126842/32226239/32218663
+$ORACLE_HOME/OPatch/opatch prereq CheckConflictAgainstOHWithDetail -phBaseDir /u01/odaPatchingTempDir/32126842/32226239/29340594
+$ORACLE_HOME/OPatch/opatch prereq CheckConflictAgainstOHWithDetail -phBaseDir /u01/odaPatchingTempDir/32126842/32226239/32240590
+
+OPatch Conflict check scripts: (for grid infrastructure) :  as oracle user for database home
+$ORACLE_HOME/OPatch/opatch prereq CheckConflictAgainstOHWithDetail -phBaseDir /u01/odaPatchingTempDir/32126842/32226239/32218454
+
+NOTE for patch check:
+The details are:
+Reason -
+Superset Patch 32218454 has
+Subset Patch 31771877 which has overlay patches [31465389] and these overlay patches conflict with Superset Patch
+
+FIX:
+ /u01/app/oracle/product/19.0.0.0/dbhome_1/OPatch/opatch rollback -id 31465389 -- and then run precheck again 
+
+$ORACLE_HOME/OPatch/opatch prereq CheckConflictAgainstOHWithDetail -phBaseDir /u01/odaPatchingTempDir/32126842/32226239/32222571
+
+OPatch system space check scipt: 
+	- create a text file in /tmp dir
+[grid@ravi tmp]$ cat patch_list_gihome.txt
+/u01/odaPatchingTempDir/32126842/32226239/32218454
+/u01/odaPatchingTempDir/32126842/32226239/32222571
+/u01/odaPatchingTempDir/32126842/32226239/32218663
+/u01/odaPatchingTempDir/32126842/32226239/29340594
+/u01/odaPatchingTempDir/32126842/32226239/32240590
+	- run the system space check script:
+$ORACLE_HOME/OPatch/opatch prereq CheckSystemSpace -phBaseFile /tmp/patch_list_gihome.txt
+-- once passed , run another quick check 
+/u01/app/19.0.0.0/grid/OPatch/opatchauto apply /u01/odaPatchingTempDir/32126842/32226239 -analyze
+
+/var/opt/oracle/exapatch/exadbcpatchmulti  -precheck_async 31305362-GI -instance1=ecc101vm02:/u01/app/18.1.0.0/grid
+
+
+OPATCHAUTO-72043
+
+
+
+
+---------------------------------------------------------------------------------------------
+patch verification:
+
+SQL>  select PATCH_ID,STATUS, to_char(ACTION_TIME, 'DD-MM-YYYY HH24:mi:ss') from dba_registry_sqlpatch;
+
+  PATCH_ID STATUS                    TO_CHAR(ACTION_TIME
+---------- ------------------------- -------------------
+  31668882 SUCCESS                   20-10-2020 08:58:26
+  31771877 SUCCESS                   20-10-2020 08:58:26
+  31465389 SUCCESS                   20-10-2020 08:58:26
+  31465389 SUCCESS                   30-03-2021 13:02:27
+  32218454 SUCCESS                   30-03-2021 13:02:28
+
+SQL>
+SQL>
+SQL>
+SQL>
+SQL>
+SQL>
+SQL> set server output on;
+SP2-0158: unknown SET option "server"
+SQL>
+SQL>
+SQL>
+SQL> set serveroutput on;
+SQL>
+SQL>
+SQL> exec dbms_qopatch.get_sqlpatch_status;
+
+Patch Id : 31668882
+        Action : APPLY
+        Action Time : 20-OCT-2020 08:58:26
+        Description : OJVM RELEASE UPDATE: 19.9.0.0.201020 (31668882)
+        Logfile :
+/u01/app/oracle/cfgtoollogs/sqlpatch/31668882/23790068/31668882_apply_G11134_CDB
+ROOT_2020Oct20_08_43_02.log
+        Status : SUCCESS
+
+Patch Id : 31771877
+        Action : APPLY
+        Action Time : 20-OCT-2020 08:58:26
+        Description : Database Release Update : 19.9.0.0.201020 (31771877)
+        Logfile :
+/u01/app/oracle/cfgtoollogs/sqlpatch/31771877/23869227/31771877_apply_G11134_CDB
+ROOT_2020Oct20_08_43_02.log
+        Status : SUCCESS
+
+Patch Id : 31465389
+        Action : APPLY
+        Action Time : 20-OCT-2020 08:58:26
+        Description : RMAN RECOVER FAILS FOR PDB$SEED DATAFILES RMAN-06163 RMAN-06166
+        Logfile :
+/u01/app/oracle/cfgtoollogs/sqlpatch/31465389/23823398/31465389_apply_G11134_CDB
+ROOT_2020Oct20_08_51_21.log
+        Status : SUCCESS
+
+Patch Id : 31465389
+        Action : ROLLBACK
+        Action Time : 30-MAR-2021 13:02:27
+        Description : RMAN RECOVER FAILS FOR PDB$SEED DATAFILES RMAN-06163 RMAN-06166
+        Logfile :
+/u01/app/oracle/cfgtoollogs/sqlpatch/31465389/23823398/31465389_rollback_ORA19AD
+1_CDBROOT_2021Mar30_12_52_22.log
+        Status : SUCCESS
+
+Patch Id : 32218454
+        Action : APPLY
+        Action Time : 30-MAR-2021 13:02:28
+        Description : Database Release Update : 19.10.0.0.210119 (32218454)
+        Logfile :
+/u01/app/oracle/cfgtoollogs/sqlpatch/32218454/24018797/32218454_apply_ORA19AD1_C
+DBROOT_2021Mar30_12_52_30.log
+        Status : SUCCESS
+
+PL/SQL procedure successfully completed.
+
