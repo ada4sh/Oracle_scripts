@@ -1,0 +1,404 @@
+-- DATABASE VERSION UPGRADE TO 19C -- 
+---------------------------------------------------------
+
+[CASE1: database is running 12.2 version and there is a 19c database already running on the same server]
+
+PREREQUISITES | PRE-UPGRADE TASKS
+1. COMPATABILITY: 
+- minimum required db version for upgrading to 19.0.0 is 11.2.0.4
+- if db version < 11.2.0.4, then upgrade to that version and then to 19c
+- if 11.2.0.4 < db version < 12.2.0.1, then upgrade to 12.2.0.1 or 12.2.0.2 and then to 19c
+
+2. PUT DB IN ARCHIVELOG MODE: [not mandatory]
+SQL> archive log list;
+Database log mode              No Archive Mode
+Automatic archival             Disabled
+Archive destination            /u01/app/oracle/product/12.2.0/dbhome_1/dbs/arch
+Oldest online log sequence     6
+Current log sequence           8
+SQL> shut immediate;
+SQL> startup mount;
+SQL> alter database archivelog;
+
+Database altered.
+
+SQL> alter database open;
+
+Database altered.
+
+SQL> archive log list;
+Database log mode              Archive Mode
+Automatic archival             Enabled
+Archive destination            /u01/app/oracle/product/12.2.0/dbhome_1/dbs/arch
+Oldest online log sequence     6
+Next log sequence to archive   8
+Current log sequence           8
+
+3. BACKUP the db using RMAN:
+[oracle@server-ad3 ~]$ vi rman_backup_ORA12V1.sh
+[oracle@server-ad3 ~]$ cat rman_backup_ORA12V1.sh
+ORACLE_BASE=/u01/app/oracle
+ORACLE_HOME=/u01/app/oracle/product/12.2.0/dbhome_1
+BACKUP_LOG_PATH=/u02/oracle/backup/ORA12V1
+export ORACLE_BASE
+export ORACLE_HOME
+export ORACLE_SID=ORA12V1
+export BACKUP_LOG_PATH
+LOG_FILE=${BACKUP_LOG_PATH}/backup_db.log
+$ORACLE_HOME/bin/rman msglog=${LOG_FILE} << EOF
+connect target /
+run {
+allocate channel t1 type disk;
+allocate channel t2 type disk;
+allocate channel t3 type disk;
+backup database format '/u02/oracle/backup/ORA12V1/database_%d_%u_%s'; release channel t1;
+release channel t2;
+release channel t3;
+}
+sql 'alter system archive log current';
+run {
+allocate channel a1 type disk;
+allocate channel a2 type disk;
+allocate channel a3 type disk;
+backup archivelog all format '/u02/oracle/backup/ORA12V1/arch_%d_%u_%s'; release channel a1;
+release channel a2;
+release channel a3;
+}
+run {
+allocate channel c1 type disk;
+backup current controlfile for standby format '/u02/oracle/backup/ORA12V1/Control_%d_%u_%s';
+release channel c1;
+}
+exit;
+EOF
+[oracle@server-ad3 ~]$ chmod 755 rman_backup_ORA12V1.sh
+[oracle@server-ad3 ~]$ nohup ./rman_backup_ORA12V1.sh &
+[oracle@server-ad3 ~]$ jobs
+[1]+  Running                 nohup ./rman_backup_ORA12V1.sh &
+[oracle@server-ad3 ~]$ tail -f /u02/oracle/backup/ORA12V1/backup_db.log --  do this in a duplicated window to see progress
+
+4. COPY TNS FILES AND PW FILES: 
+[oracle@server-ad3 ~]$ cd $ORACLE_HOME/network/admin
+[oracle@server-ad3 admin]$ mkdir -p /u01/app/backup
+[oracle@server-ad3 admin]$ cp -p listener.ora sqlnet.ora tnsnames.ora /u01/app/backup/
+[oracle@server-ad3 admin]$ cd $ORACLE_HOME/dbs
+[oracle@server-ad3 dbs]$ cp -p spfileORA12V1.ora orapwORA12V1 /u01/app/backup/
+
+5. MAKE SURE THERE ARE 0 INVALID OBJECTS:
+SQL> select count(*) from dba_objects where status='INVALID';
+
+  COUNT(*)
+----------
+         0
+note: only pl/sql objects and views get invalid or unusable, dba_registry components should be valid
+- if you have a count >0, then run the buttom command until count=0
+SQL> @?/rdbms/admin/utlrp.sql
+
+6. RUN PRE-UPGRADE SCRIPTS:
+[oracle@server-ad3 ~]$ echo $ORACLE_SID
+ORA12V1
+[oracle@server-ad3 ~]$ mkdir -p /home/oracle/ORA12V1/preupgrade
+[oracle@server-ad3 ~]$  /u01/app/oracle/product/12.2.0/dbhome_1/jdk/bin/java -jar /u01/app/oracle/product/19.0.0/dbhome_1/rdbms/admin/preupgrade.jar FILE DIR /home/oracle/ORA12V1/preupgrade
+==================
+PREUPGRADE SUMMARY
+==================
+  /home/oracle/ORA12V1/preupgrade/preupgrade.log
+  /home/oracle/ORA12V1/preupgrade/preupgrade_fixups.sql
+  /home/oracle/ORA12V1/preupgrade/postupgrade_fixups.sql
+
+Execute fixup scripts as indicated below:
+
+Before upgrade:
+
+Log into the database and execute the preupgrade fixups
+@/home/oracle/ORA12V1/preupgrade/preupgrade_fixups.sql
+
+After the upgrade:
+
+Log into the database and execute the postupgrade fixups
+@/home/oracle/ORA12V1/preupgrade/postupgrade_fixups.sql
+
+Preupgrade complete: 2020-12-23T19:15:47
+[oracle@server-ad3 ~]$ cat /home/oracle/ORA12V1/preupgrade/preupgrade.log
+- check the 'REQUIRED ACTIONS' sections, and if its 'none', then you are good to go as the rest of the fixups are just suggestions
+
+7. MAKE SURE TABLESPACES ARE AUTO-EXTENSIBLE:
+SQL> col FILE_NAME for a50;
+SQL> set lines 150;
+SQL> select FILE_NAME,TABLESPACE_NAME,AUTOEXTENSIBLE from dba_data_files;
+
+FILE_NAME                                          TABLESPACE_NAME                AUT
+-------------------------------------------------- ------------------------------ ---
+/u02/oradata/ORA12V1/system01.dbf                  SYSTEM                         YES
+/u02/oradata/ORA12V1/sysaux01.dbf                  SYSAUX                         YES
+/u02/oradata/ORA12V1/users01.dbf                   USERS                          YES
+/u02/oradata/ORA12V1/undotbs01.dbf                 UNDOTBS1                       YES
+
+8. UPDATE INIT PARAMETERS
+- since nothing regarding init parameters was mentioned in the preupgrade.log file under required changes, we are good to go. 
+
+9. GATHER DICTIONARY STATS and PURGE RECYCLEBIN:
+SQL> SET ECHO ON;
+SQL> SET SERVEROUTPUT ON;
+SQL> EXECUTE DBMS_STATS.GATHER_DICTIONARY_STATS;
+
+PL/SQL procedure successfully completed.
+
+SQL> PURGE DBA_RECYCLEBIN;
+
+DBA Recyclebin purged.
+
+10. REFRESH MATERIALIZED-VIEWS:
+SQL> SELECT o.name FROM sys.obj$ o, sys.user$ u, sys.sum$ s WHERE o.type# = 42 AND bitand(s.mflags, 8) =8;
+
+no rows selected
+SQL> declare
+list_failures integer(3) :=0;
+begin
+DBMS_MVIEW.REFRESH_ALL_MVIEWS(list_failures,'C','', TRUE, FALSE);
+end;
+/
+
+PL/SQL procedure successfully completed.
+
+10. RUN PRE-UPGRADE FIXUP SCRIPT THAT WAS GENERATED:
+SQL> @/home/oracle/ORA12V1/preupgrade/preupgrade_fixups.sql
+Executing Oracle PRE-Upgrade Fixup Script
+
+Auto-Generated by:       Oracle Preupgrade Script
+                         Version: 19.0.0.0.0 Build: 1
+Generated on:            2020-12-23 19:38:54
+
+For Source Database:     ORA12V1
+Source Database Version: 12.2.0.1.0
+For Upgrade to Version:  19.0.0.0.0
+
+Preup                             Preupgrade
+Action                            Issue Is
+Number  Preupgrade Check Name     Remedied    Further DBA Action
+------  ------------------------  ----------  --------------------------------
+    1.  tablespaces_info          NO          Informational only.
+                                              Further action is optional.
+    2.  min_archive_dest_size     NO          Informational only.
+                                              Further action is optional.
+    3.  rman_recovery_version     NO          Informational only.
+                                              Further action is optional.
+
+The fixup scripts have been run and resolved what they can. However,
+there are still issues originally identified by the preupgrade that
+have not been remedied and are still present in the database.
+Depending on the severity of the specific issue, and the nature of
+the issue itself, that could mean that your database is not ready
+for upgrade.  To resolve the outstanding issues, start by reviewing
+the preupgrade_fixups.sql and searching it for the name of
+the failed CHECK NAME or Preupgrade Action Number listed above.
+There you will find the original corresponding diagnostic message
+from the preupgrade which explains in more detail what still needs
+to be done.
+
+PL/SQL procedure successfully completed.
+
+11. MAKE SURE ARCHIVE LOG DEST HAS ENOUGH SPACE:
+SQL> archive log list
+Database log mode              Archive Mode
+Automatic archival             Enabled
+Archive destination            /u01/app/oracle/product/12.2.0/dbhome_1/dbs/arch
+Oldest online log sequence     8
+Next log sequence to archive   10
+Current log sequence           10
+[oracle@server-ad3 dbs]$ df -h /u01/app/oracle/product/12.2.0/dbhome_1/dbs/arch
+Filesystem                 Size  Used Avail Use% Mounted on
+/dev/mapper/BITS_GRP-BITS  196G   34G  152G  19% /u01
+
+12. STOP LISTENER:
+[oracle@server-ad3 ~]$ ps -ef | grep tns
+root        22     2  0 Nov23 ?        00:00:00 [netns]
+oracle   81576 78187  0 19:50 pts/0    00:00:00 grep --color=auto tns
+
+* 13. CREATE FLASHBACK GUARANTEED RESTORE POINT: [ NOT NECESSARY FROM 11.2.0.1 ]
+SQL> select flashback_on from v$database;
+
+FLASHBACK_ON
+------------------
+NO
+SQL> show parameter recovery
+
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+db_recovery_file_dest                string
+db_recovery_file_dest_size           big integer 0
+recovery_parallelism                 integer     0
+remote_recovery_file_dest            string
+[oracle@server-ad3 ~]$ mkdir -p u01/app/oracle/fast_recovery_area
+SQL> alter system set db_recovery_file_dest_size=5G;
+
+System altered.
+
+14. SHUT DB AND COPY PWD AND INIT FILES:
+SQL> shut immediate;
+-- copy pw and init files from 12c home/dbs to 19c/dbs 
+[oracle@server-ad3 dbs]$ cp orapwORA12V1 spfileORA12V1.ora /u01/app/oracle/product/19.0.0/dbhome_1/dbs/
+
+15. EXPORT INIT PARAMETERS AND STARTUP DB IN UPGRADE MODE:
+[oracle@server-ad3 dbs]$ export ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1
+[oracle@server-ad3 dbs]$ echo $ORACLE_SID
+ORA12V1
+[oracle@server-ad3 dbs]$ export PATH=/u01/app/oracle/product/19.0.0/dbhome_1/bin:$PATH;
+[oracle@server-ad3 dbs]$ which sqlplus
+/u01/app/oracle/product/19.0.0/dbhome_1/bin/sqlplus
+Enter user-name: / as sysdba
+Connected to an idle instance.
+
+SQL> startup upgrade;
+SQL> select name, open_mode, cdb,version,status from v$database, v$instance;
+
+NAME      OPEN_MODE            CDB VERSION           STATUS
+--------- -------------------- --- ----------------- ------------
+ORA12V1   READ WRITE           NO  19.0.0.0.0        OPEN MIGRATE
+
+16. RUN dbupgrade:
+[oracle@server-ad3 ~]$ mkdir -p /home/oracle/upgrade_process
+[oracle@server-ad3 ~]$ cd $ORACLE_HOME/bin
+[oracle@server-ad3 bin]$ pwd
+/u01/app/oracle/product/19.0.0/dbhome_1/bin
+[oracle@server-ad3 bin]$ ls -ltr dbupgrade
+-rwxr-x--- 1 oracle oinstall 3136 Apr 17  2019 dbupgrade
+[oracle@server-ad3 bin]$ nohup ./dbupgrade &
+[oracle@server-ad3 bin]$ jobs
+[1]+  Running                 nohup ./dbupgrade &
+-- tail -f nohup.out for tailing
+
+[oracle@server-ad3 upgrade20201224163332]$ more upg_summary.log
+
+Oracle Database Release 19 Post-Upgrade Status Tool    12-24-2020 17:06:4
+Database Name: ORA12V1
+
+Component                               Current         Full     Elapsed Time
+Name                                    Status          Version  HH:MM:SS
+
+Oracle Server                          UPGRADED      19.9.0.0.0  00:13:00
+JServer JAVA Virtual Machine           UPGRADED      19.9.0.0.0  00:01:10
+Oracle XDK                             UPGRADED      19.9.0.0.0  00:00:53
+Oracle Database Java Packages          UPGRADED      19.9.0.0.0  00:00:10
+OLAP Analytic Workspace                UPGRADED      19.9.0.0.0  00:00:10
+Oracle Label Security                  UPGRADED      19.9.0.0.0  00:00:06
+Oracle Database Vault                  UPGRADED      19.9.0.0.0  00:00:26
+Oracle Text                            UPGRADED      19.9.0.0.0  00:00:32
+Oracle Workspace Manager               UPGRADED      19.9.0.0.0  00:00:34
+Oracle Real Application Clusters       UPGRADED      19.9.0.0.0  00:00:00
+Oracle XML Database                    UPGRADED      19.9.0.0.0  00:01:26
+Oracle Multimedia                      UPGRADED      19.9.0.0.0  00:00:35
+Spatial                                 LOADING      19.9.0.0.0  00:04:33
+Oracle OLAP API                         INVALID      19.9.0.0.0  00:00:09
+Datapatch                                                        00:07:19
+Final Actions                                                    00:07:26
+Post Upgrade                                                     00:00:13
+
+Total Upgrade Time: 00:32:00
+
+Database time zone version is 26. It is older than current release time
+zone version 32. Time zone upgrade is needed using the DBMS_DST package.
+
+Grand Total Upgrade Time:    [0d:0h:33m:57s]
+
+16. START UPGRADED DB and CHECK INVALID OBJECTS:
+SQL> select name, open_mode, cdb, version, status from v$database, v$instance;
+
+NAME      OPEN_MODE            CDB VERSION           STATUS
+--------- -------------------- --- ----------------- ------------
+ORA12V1   READ WRITE           NO  19.0.0.0.0        OPEN
+
+SQL> @?/rdbms/admin/utlrp.sql -- to re-compile invalid objects [oracle OLAP API in this case]
+SQL> select COMP_NAME,VERSION,STATUS from dba_registry;
+
+COMP_NAME                      VERSION                        STATUS
+------------------------------ ------------------------------ --------------------------------------------
+Oracle Database Catalog Views  19.0.0.0.0                     VALID
+Oracle Database Packages and T 19.0.0.0.0                     VALID
+ypes
+
+JServer JAVA Virtual Machine   19.0.0.0.0                     VALID
+Oracle XDK                     19.0.0.0.0                     VALID
+Oracle Database Java Packages  19.0.0.0.0                     VALID
+OLAP Analytic Workspace        19.0.0.0.0                     VALID
+Oracle Real Application Cluste 19.0.0.0.0                     OPTION OFF
+rs
+
+
+COMP_NAME                      VERSION                        STATUS
+------------------------------ ------------------------------ --------------------------------------------
+Oracle XML Database            19.0.0.0.0                     VALID
+Oracle Workspace Manager       19.0.0.0.0                     VALID
+Oracle Text                    19.0.0.0.0                     VALID
+Oracle Multimedia              19.0.0.0.0                     VALID
+Spatial                        19.0.0.0.0                     VALID
+Oracle OLAP API                19.0.0.0.0                     VALID
+Oracle Label Security          19.0.0.0.0                     VALID
+Oracle Database Vault          19.0.0.0.0                     VALID
+
+15 rows selected.
+
+SQL> !pwd
+/home/oracle/ORA12V1/preupgrade
+
+SQL> @postupgrade_fixups.sql
+
+
+17. UPDATE TIMEZONE:
+SQL> select version from v$timezone_file;
+
+   VERSION
+----------
+        26
+SQL> @/u01/app/oracle/product/19.0.0/dbhome_1/rdbms/admin/utltz_upg_check.sql
+SQL> @/u01/app/oracle/product/19.0.0/dbhome_1/rdbms/admin/utltz_upg_apply.sql
+SQL> select version from v$timezone_file;
+
+   VERSION
+----------
+        32
+
+18. RUN utlusts.sql, to heck if everything is valid
+SQL> @/u01/app/oracle/product/19.0.0/dbhome_1/rdbms/admin/utlusts.sql TEXT
+
+Oracle Database Release 19 Post-Upgrade Status Tool    12-24-2020 17:47:4
+Database Name: ORA12V1
+
+Component                               Current         Full     Elapsed Time
+Name                                    Status          Version  HH:MM:SS
+
+Oracle Server                             VALID      19.9.0.0.0  00:13:00
+JServer JAVA Virtual Machine              VALID      19.9.0.0.0  00:01:10
+Oracle XDK                                VALID      19.9.0.0.0  00:00:53
+Oracle Database Java Packages             VALID      19.9.0.0.0  00:00:10
+OLAP Analytic Workspace                   VALID      19.9.0.0.0  00:00:10
+Oracle Label Security                     VALID      19.9.0.0.0  00:00:06
+Oracle Database Vault                     VALID      19.9.0.0.0  00:00:26
+Oracle Text                               VALID      19.9.0.0.0  00:00:32
+Oracle Workspace Manager                  VALID      19.9.0.0.0  00:00:34
+Oracle Real Application Clusters     OPTION OFF      19.9.0.0.0  00:00:00
+Oracle XML Database                       VALID      19.9.0.0.0  00:01:26
+Oracle Multimedia                         VALID      19.9.0.0.0  00:00:35
+Spatial                                   VALID      19.9.0.0.0  00:04:33
+Oracle OLAP API                           VALID      19.9.0.0.0  00:00:09
+Datapatch                                                        00:07:19
+Final Actions                                                    00:07:26
+Post Upgrade                                                     00:00:13
+Post Compile                                                     00:03:37
+
+Total Upgrade Time: 00:35:38
+
+Database time zone version is 32. It meets current release needs.
+
+SQL> @/u01/app/oracle/product/19.0.0/dbhome_1/rdbms/admin/catuppst.sql
+
+SQL> select con_id, mkloc from x$kcbdbk -- this means, this db used a key
+  2  ;
+
+    CON_ID      MKLOC
+---------- ----------
+         0          1
+
+1 row selected.
+
+
