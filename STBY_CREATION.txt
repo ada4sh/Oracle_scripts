@@ -1,0 +1,212 @@
+-- STEPS TO CREATE STANDBY DATABASE -- 
+
+[ORACLE GRID INFRASTRUCTURE]
+-- on PRIMARY -- 
+1. create database using dbca > ENABLE FORCE LOGGING:
+[oracle@server-ad1 ~]$ cat create_db_dbca.sh
+dbca -silent -createDatabase \
+-templateName seed_db.dbc \
+-gdbName PRMYDB1 \
+-sid PRMYDB1 \
+-sysPassword dba-AD119_1_2021 \
+-systemPassword dba-AD119_1_2021 \
+-emConfiguration NONE \
+-storageType ASM \
+-diskGroupName +DATA \
+-recoveryGroupName +RECO \
+-datafileJarLocation $ORACLE_HOME/assistants/dbca/templates \
+-automaticMemoryManagement FALSE \
+-initparams sga_target=2000M
+
+
+
+SQL> select FORCE_LOGGING from v$database;
+
+FORCE_LOGGING
+---------------------------------------
+NO
+SQL> alter database force logging;
+
+2. setup keys:
+	a. SQL> alter system set wallet_root='/u01/app/oracle/product/19.0.0.0/dbhome_1/network/admin/AD1NCDB/tde' scope=spfile;
+	b. restart database
+	c. SQL> alter system set tde_configuration="KEYSTORE_CONFIGURATION=FILE"  SCOPE=spfile;
+	d. SQL> administer key management create keystore identified by welcome1;
+	e. SQL> ADMINISTER KEY MANAGEMENT SET KEYSTORE OPEN IDENTIFIED BY welcome1;
+	f. SQL> ADMINISTER KEY MANAGEMENT SET KEY USING TAG 'master key' IDENTIFIED BY welcome1 WITH BACKUP;
+	g. SQL> ADMINISTER KEY MANAGEMENT CREATE local AUTO_LOGIN KEYSTORE FROM KEYSTORE IDENTIFIED BY welcome1;
+	h. restart database.
+
+*3. make sure you have spfile instead of init file:
+
+
+4. update tns entries on both primary and standby and test tnsping
+[IN PRIMARY]
+
+5. update spfile with init params or run scripts for db file name change, etc 
+-- set up on primary database -- 
+
+alter system set log_archive_dest_1= 'LOCATION=+RECO MANDATORY' scope=spfile;
+alter system set log_archive_format= 'PRMYDB1_%t_%s_%r.arc' scope=spfile;
+alter system set log_archive_dest_2= 'service="PRMYDB1_STBY" ASYNC valid_for=(online_logfiles,primary_role) db_unique_name=PRMYDB1_STBY' scope=spfile;
+alter system set LOG_ARCHIVE_DEST_STATE_2=DEFER scope=spfile; 
+alter system set db_file_name_convert= '+DATA/PRMYDB1_STBY','+DATA/PRMYDB1' scope=spfile;
+alter system set log_file_name_convert='+DATA/PRMYDB1_STBY','+DATA/PRMYDB1','+RECO/PRMYDB1_STBY','+RECO/PRMYDB1' scope=spfile;
+alter system set log_archive_config= 'dg_config=(PRMYDB1,PRMYDB1_STBY)' scope=spfile;
+alter system set STANDBY_FILE_MANAGEMENT=AUTO scope=spfile;
+
+6. check for pwfile or else create one <select * from v$pwfile_users> :
+$ orapwd file=orapw<dbname> entries=10 password=<sys password> in $ORACLE_HOME/dbs
+
+7. SQL> create pfile='/tmp/init<dbname.ora>' from spfile --  location doesnt matter
+8. make sure ssh key is in eachother's authorised_keys file
+9. scp init.ora file to stby site at $ORACLE_HOME/dbs
+10. scp pwfile to same location  
+11. add entry to /etc/oratab or $env>[dbname].env
+
+-- ON STANDBY -- 
+12. update init file with db unique name changes in parameters and file name converts and make sure db_unique_name parameter is set to standby db name
+-- update on stby database's initPRMYDB1.ora file -- 
+
+log_archive_dest_1= 'LOCATION=+RECO MANDATORY'
+log_archive_format= 'PRMYDB1_%t_%s_%r.arc' 
+log_archive_dest_2= 'service="PRMYDB1" ASYNC valid_for=(online_logfiles,primary_role) db_unique_name=PRMYDB1' 
+LOG_ARCHIVE_DEST_STATE_2=DEFER 
+db_file_name_convert= '+DATA/PRMYDB1','+DATA/PRMYDB1_STBY' 
+log_file_name_convert='+DATA/PRMYDB1','+DATA/PRMYDB1_STBY','+RECO/PRMYDB1','+RECO/PRMYDB1_STBY'
+log_archive_config= 'dg_config=(PRMYDB1,PRMYDB1_STBY)'
+aSTANDBY_FILE_MANAGEMENT=AUTO
+
+13. set oracle sid = <dbname> and set audit file dest 
+$ export ORACLE_SID=PRMYDB1
+[oracle@server-ad1-dg ~]$ mkdir -p /u01/app/oracle/admin/PRMYDB1/adump
+
+14. startup nomount
+15. create spfile from memory
+16. restart database to nomount
+
+17. run RMAN scipt
+$ RMAN 
+connect target /
+RESTORE STANDBY CONTROLFILE FROM SERVICE PRMYDB1;
+run {
+restore database from service PRMYDB1;
+}
+switch database to copy;
+
+18. check state_2 parameter on both sites and database roles 
+19. sync up the database and check max sequence# which are applied
+
+// Cancel / stop dataguard /standby recovery
+SQL> alter database recover managed standby database cancel;
+
+// enable / put the database in recovery mode
+SQL> ALTER DATABASE RECOVER MANAGED STANDBY DATABASE USING CURRENT LOGFILE DISCONNECT FROM SESSION;
+
+
+
+
+-------------------------------------------------------------------------------------------------------------------
+-- | ENABLE ACTIVE DATAGUARD REDIRECT | --
+
+- enable active dataguard guard
+SQL> ALTER DATABASE RECOVER MANAGED STANDBY DATABASE CANCEL;
+SQL> SHUTDOWN IMMEDIATE
+SQL> STARTUP MOUNT
+SQL> ALTER DATABASE OPEN;
+SQL> ALTER DATABASE RECOVER MANAGED STANDBY DATABASE DISCONNECT FROM SESSION;
+SQL> SELECT open_mode FROM V$DATABASE;
+OPEN_MODE
+--------------------
+READ ONLY WITH APPLY
+
+
+- create standby redo logs on primary and standby (or create standby redo logs on primary before creating dataguard)
+SQL> alter database add standby logfile group 4 ('+DATA') size 1073741824;
+SQL> alter database add standby logfile group 5 ('+DATA') size 1073741824;
+SQL> alter database add standby logfile group 6 ('+DATA') size 1073741824;
+SQL> alter database add standby logfile group 7  ('+DATA') size 1073741824;
+PS: on primary, and in v$log, there were 3 groups each of size 1073741824 hence starting with group number 4, so, while create standby redo, its good practice to have (number of online redo groups + 1) standby redo groups
+
+
+- make sure primary and standby are in maximum availability (protection mode)
+CHANGING PROTECTION MODE: (STANDBY AND PRIMARY)
+SQL> select PROTECTION_MODE from v$database;
+
+PROTECTION_MODE
+--------------------
+MAXIMUM PERFORMANCE
+SQL> show parameter dest_2;
+
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+db_create_online_log_dest_2          string
+log_archive_dest_2                   string      service="PRMYDB1" ASYNC valid_
+                                                 for=(online_logfiles,primary_r
+                                                 ole) db_unique_name=PRMYDB1
+-- in standby 
+SQL> alter system set log_archive_dest_2='service="PRMYDB1" SYNC valid_for=(all_logfiles,primary_role) db_unique_name=PRMYDB1' scope = both;
+-- in primary
+SQL> alter system set log_archive_dest_2='service="PRMYDB1_STBY" SYNC valid_for=(all_logfiles,primary_role) db_unique_name=PRMYDB1_STBY' scope = both;
+-- to convert protection mode in both sites
+SQL> alter database set standby database to maximize availability;
+SQL> select protection_mode from v$database;
+
+PROTECTION_MODE
+--------------------
+MAXIMUM AVAILABILITY
+
+
+- change adg_redirect_dml parameter to true on standby site 
+SQL> show parameter adg_
+
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+adg_account_info_tracking            string      LOCAL
+adg_redirect_dml                     boolean     FALSE
+cell_offloadgroup_name               string
+inmemory_adg_enabled                 boolean     TRUE
+SQL> alter system set adg_redirect_dml=TRUE scope=both;
+
+System altered.
+SQL> show parameter adg_
+
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+adg_account_info_tracking            string      LOCAL
+adg_redirect_dml                     boolean     TRUE
+cell_offloadgroup_name               string
+inmemory_adg_enabled                 boolean     TRUE
+
+- enable that state_2 parameter
+SQL> show parameter state_2;
+
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+log_archive_dest_state_2             string      DEFER
+SQL> alter system set log_archive_dest_state_2=ENABLE scope=both;
+
+System altered.
+SQL> show parameter state_2
+
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+log_archive_dest_state_2             string      ENABLE
+
+
+-------------------------------------------------------------------------------------------------------------------
+-- | DATAGUARD SYNC CHECK AND TROUBLKESHOOT | --
+
+- check production and standby server status
+	- see if the prod db is up and running and if standby db is atleast in mount mode 
+- check state_2 parameter if its on ENABLE or not 
+- check network between prod and dr servers 
+	- tnsping <tnsnamees entry>
+- check the mrp process status 
+- check mrp log sequence = prod log sequence
+- check alert log for further issues 
+
+
+
+
+
