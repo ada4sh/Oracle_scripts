@@ -1,0 +1,149 @@
+ create environment file 
+ vi $ORACLE_HOME/dbs/initNIKHI.ora
+ 
+ *.compatible='18.9.0.0.0'
+*.db_block_size=8192
+*.db_domain=''
+*.db_name='NIKHI'
+*.diagnostic_dest='/u01/app/oracle'
+*.open_cursors=300
+*.pga_aggregate_target=536870912
+*.processes=300
+*.sga_target=4G
+*.audit_file_dest=/u01/app/oracle/admin/NIKHI/adump
+
+// add DB into /etc/oratab
+vi /etc/oratab
+// add an extra entry at the bottom (yyp - to copy and paste a full line)
+//change name from bottom line as example
+DB18C:/u01/app/oracle/product/18.0.0.0/dbhome_1:N               # line added by Agent
+NIKHI:/u01/app/oracle/product/18.0.0.0/dbhome_1:N               # line added by Agent
+
+// after adding a new line, follow below steps
+ . oraenv 
+ [NIKHI]? (click enter)
+$ sqlplus / as sysdba
+
+SQL> create spfile from pfile;
+
+SQL> startup nomount
+SQL> CREATE DATABASE NIKHI
+MAXLOGFILES 5
+MAXLOGMEMBERS 5
+MAXDATAFILES 100
+MAXINSTANCES 1
+CHARACTER SET AL32UTF8; (US&ASCII is for only english and nothing else)
+
+from another linux window:
+go to:
+cd /u01/app/oracle/diag/rdbms/adarshvb/ADARSHVB/trace
+tail -f alert_ADARSHVB.log
+
+Back to sql window:
+SQL> @$ORACLE_HOME/rdbms/admin/catalog.sql
+SQL> @ORACLE_HOME/rdbms/admin/catproc.sql 
+
+in the tail window: ctrl+c to abort tailing
+
+back to sql window:
+SQL> alter user system identified by Adarsh$95
+SQL> connect system/Adarsh$95sys
+SQL> @$ORACLE_HOME/sqlplus/admin/pupbld.sql 
+SQL> connect / as sysdba
+SQL> shutdown immediate
+SQL> startup
+
+note:
+there are diff types of oracle files in oracle db
+-Control files : has info about db
+-Redo log files : All changes that are happening will go there 
+-Data files : All permanent data should be there here. This is basiclaly all the data.
+-Temp files : will be used to sort 
+
+// this is how you view the files from sql 
+SQL>
+SQL>
+SQL> select name from  v$CONTROLFILE
+  2  ;
+
+NAME
+----------------------------------------------------------------------------------------------------
+/u01/app/oracle/product/18.0.0.0/dbhome_1/dbs/cntrlNIKHI.dbf
+
+SQL>
+SQL>
+SQL>
+SQL> select member from v$LOGFILE
+  2  ;
+
+MEMBER
+----------------------------------------------------------------------------------------------------
+/u01/app/oracle/product/18.0.0.0/dbhome_1/dbs/log1NIKHI.dbf
+/u01/app/oracle/product/18.0.0.0/dbhome_1/dbs/log2NIKHI.dbf
+
+SQL> select name from v$DATAFILE;
+
+NAME
+----------------------------------------------------------------------------------------------------
+/u01/app/oracle/product/18.0.0.0/dbhome_1/dbs/dbs1NIKHI.dbf
+/u01/app/oracle/product/18.0.0.0/dbhome_1/dbs/dbx1NIKHI.dbf
+/u01/app/oracle/product/18.0.0.0/dbhome_1/dbs/dbu1NIKHI.dbf
+
+SQL>  select name from v$TEMPFILE;
+
+no rows selected
+
+//end 
+
+
+// to create users in SQL DB
+SQL> create user scott identified by Thope_007;
+
+User created.
+
+SQL>
+SQL>
+SQL>
+SQL> grant create session to scott;
+
+Grant succeeded.
+
+SQL>
+SQL>
+SQL> grant create table to scott;
+
+Grant succeeded.
+
+SQL>
+SQL>
+SQL> select tablespace_name from dba_tablespaces;
+
+TABLESPACE_NAME
+------------------------------
+SYSTEM
+SYSAUX
+SYS_UNDOTS
+
+SQL>
+SQL>
+SQL> alter user scott quota unlimited on system;
+
+User altered.
+
+SQL>
+
+-----------------------------------------------------------------------------------
+Database disgnostics: 
+SQL> alter database backup controlfile to trace;
+
+Database altered.
+
+
+cd /u01/app/oracle/diag/rdbms/heroes/HEROES/trace (- diagnostic directory)
+
+grep -l 'CREATE DATABASE' *.TRC
+
+vi (filename) (ctrl+f) to browse throhgh page by page)
+
+-----------------------------------------------------------------------------------
+
