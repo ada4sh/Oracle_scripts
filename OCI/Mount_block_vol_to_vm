@@ -1,5 +1,7 @@
 // Attaching and Mounting block volume to VM //
 
+https://medium.com/@adarsh.reddy.perapola/mount-block-volume-to-linux-vm-3066b1a9e7ae
+
 - on the OCI Console, create a block volume or use an existing one and attach it to a VM
 - ssh to the VM and verify that the block volume is attached 
 [opc@pnr-vm1 ~]$ lsblk
