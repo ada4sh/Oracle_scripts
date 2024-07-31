@@ -1,0 +1,56 @@
+-- ORACLE DBA INTERVIEW PREP -- 2024
+-----------------------------------------------------------
+
+#1 TOP RUNNING SQLS 
+
+
+
+-----------------------------------------------------------
+#2 Patching [ grid, image, dbhome ]
+
+
+
+-----------------------------------------------------------
+#3 Db refresh 
+#3.1 DBlink 
+
+
+
+#3.2 Rman 
+
+
+
+-----------------------------------------------------------
+#4 Db version upgrade 
+
+
+
+-----------------------------------------------------------
+#5 Backup / restore 
+#5.1 Rman 
+
+
+
+#5.2 expdp/impdp 
+
+
+
+-----------------------------------------------------------
+#6 Common Db issues 
+#6.1 AWR Reports 
+
+
+
+#6.2 tablespace running low on space 
+
+
+
+#6.3 user / pw reset 
+
+
+
+#6.4 locked users / sessions
+
+
+
+#6.5 Debugging slow running sqls / slow db performance 
