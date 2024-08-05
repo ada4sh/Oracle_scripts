@@ -1,0 +1,121 @@
+// Patching Oracle 19C database Server on Linux (OL8 or any x86_64) //
+
+STEP 1: downlaod the combo patch to the target server 
+- Combo patch is for Db home and JVM 
+- Keep the patching document (readme) handy so that you can follow the patching steps 
+
+- Lets patch DB Home first and then JVM after
+
+STEP 2: Pre-requisites for DB Server / Home patch
+
+// Check OPatch version and Update if necessary
+- go to OPatch location
+$ cd $ORACLE_HOME/OPatch
+
+- Check opatch version 
+$ opatch -version
+
+- Review patch document to check min required version for OPatch and update if version is low
+- Rename the old OPatch directory as it will be replaced
+$ cd $ORACLE_HOME 
+$ mv OPatch OPatch_old
+
+- download the OPatch utility, download using wget on target server or to local machine and then winSCP to target server (assume /u01/software is where patch file will be downloaded) 
+$ cd /u01/software
+< wget or SFTP to this location and directory >
+
+- Make the OPatach zlip file avaialble (change persmissions)
+$ chmod 777 <opatch patch file>.zip 
+
+- Move the patch zip file to Oracle Home where old OPatch directory excists
+$ mv /u01/software/<opatch patch file>.zip $ORACLE_HOME/
+
+- Unzip the PAtch file and make sure you are oracle user
+$ unzip <opatch patch file>.zip
+
+- Confirm new OPatch version 
+$ cd $ORACLE_HOME/OPatch/
+$ opatch -version
+
+// Check if Oracle path is set 
+$ echo $PATH 
+
+// Check for Conflicts in patching by running a pecheck and make sure there are none. If any, they will show up in the log file displayed. 
+$ cd /u01/software/<DbPatchFile>/
+$ opatch prereq CheckConflictAgainstOHWithdetail -ph ./
+
+// ???? SOME COMMON POSSIBLE PROBLEMS WHEN RUNNING A PRE-CHECK
+
+NOTE: 
+- For any environment, DB instances, listeners and services need to be stopped before applying patch and hence setup blackouts for any company specific alerting system. 
+- For non-RAC environments, stop DB instances and listeners before patching 
+- for RAC environments, the patching process is a rolling patch (one node at a time) 
+- If any Dataguard (DG) is setup, first patch the primary instance and then the DG instance. 
+
+STEP 3: Apply the Patch 
+- Assuming there are now no issues after the pre-check, it is time to apply the patch 
+
+// check for any open or running DB instances and then Shutdown
+$ ps -ef | grep smom 
+SQL> select distinct status from v$datafile; 
+SQL> shut immediate;
+
+// shutdown listener
+$ lsnrctl status 
+$ lsnrctl stop 
+
+// Apply Patch
+$ cd /u01/software/<DbPatchFile>/
+$ opatch apply
+
+NOTE: 
+- Patching time is not dependent on number of DBs or DB sizes butr rather dependent on the available resources (CPU and memory) in order to precheck and apply the patch 
+- When applying the patch, 'opatch' will run the pre-check script again and then apply the patch as standard procedure
+
+// Verify that the Patch is applied
+- look for patch number in patch inventory and then with opatch
+$ lsinventory 
+$ opatch lspatches
+
+// THIS CONCLUDES THE DB PATCH. NEXT IS JVM PATCH. 
+
+STEP 4: Apply OJVM Patch 
+- Oracle provides JVM patch as a seperate patch zip file and is applied seperately as well. 
+- In the case on combo patch, both patch files will come as a bundle with seperate patch IDs and will have to be applied seperately
+
+// Verify Version of JVM 
+$ cd $ORACLE_HOME/OPatch 
+$ opatch lspatches
+
+- Even while applying the JVM patch, we need to check the OPatch version (min version mentioned in patch document for JVM as well) Since we have already updated opatch, we are ready to run the precheck 
+
+// go to the JVM patch location and apply the patch; resolve any issues shown in the logfile
+$ cd /u01/software/<OJVMPatchFile>/
+$ opatch prereq CheckConflictAgainstOHWithdetail -ph ./
+
+// Shutdown DB, listener and services 
+- Since DB, Listener are still shut down, we can go ahead and apply the patch 
+
+// Apply OJVM Patch 
+$ cd /u01/software/<OJVMPatchFile>/
+$ opatch apply
+
+STEP 5: Final Post Patch application steps
+- Once patch is applied, we need to startup the database and update the dictionary views and recompile any invalid objects 
+
+// Update Dictionary Views using datapatch 
+$ sqplus / as sysdba
+SQL> startup;
+SQL> quit ;
+$ cd ORACLE_HOME/OPatch
+$ ./datapatch -verbose 
+
+// Check DB Registery 
+SQL> select * from dba_registery_sqlpatch; 
+## make sure patches are applied ands reflected 
+
+// Recompile Invalid Objects 
+$ cd $ORACLE_HOME/rdbms/admin
+SQL> @utlrp.sql 
+
+-- PATCHING COMPLETE -- 
