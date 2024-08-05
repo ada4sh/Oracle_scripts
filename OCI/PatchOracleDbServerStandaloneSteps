@@ -1,5 +1,7 @@
 // Patching Oracle 19C database Server on Linux (OL8 or any x86_64) //
 
+https://medium.com/@adarshreddyperapola/patching-oracle-19c-database-server-on-linux-ol8-or-any-x86-64-55759bf391fe
+
 STEP 1: downlaod the combo patch to the target server 
 - Combo patch is for Db home and JVM 
 - Keep the patching document (readme) handy so that you can follow the patching steps 
