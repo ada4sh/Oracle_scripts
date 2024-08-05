@@ -44,8 +44,6 @@ $ echo $PATH
 $ cd /u01/software/<DbPatchFile>/
 $ opatch prereq CheckConflictAgainstOHWithdetail -ph ./
 
-// ???? SOME COMMON POSSIBLE PROBLEMS WHEN RUNNING A PRE-CHECK
-
 NOTE: 
 - For any environment, DB instances, listeners and services need to be stopped before applying patch and hence setup blackouts for any company specific alerting system. 
 - For non-RAC environments, stop DB instances and listeners before patching 
