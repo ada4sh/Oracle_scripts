@@ -1,0 +1,151 @@
+// Installing Oracle 19C database sofware on Linux (x86_64) //
+
+- Getting Ip information:
+// get public ip of the server 
+[oracle@MSI ~]$ curl ifconfig.co
+<public ip is diplayed as result> 
+
+// get private ip of the server 
+[oracle@MSI ~]$ hostname -i
+<private ip is diplayed as result> 
+
+// get domain address of server:
+
+
+- confirm that host information is present in /etc/hosts or add entry of private ip and hostname as root user 
+[oracle@MSI software]$ cat /etc/hosts
+[oracle@MSI software]$ <private ip> <domain> <hostname> 
+
+// Run automatic Pre-requisites check: 
+- as root user install the prerequisite package:
+[root@MSI ~]# cd /u01/software
+[root@MSI software]# dnf install -y oracle-database-preinstall-19c
+
+// make sure users and groups are created
+-- user: oracle, and then the following groups: oinstall dba, oper, backupdba, dgdba,m kmdba, asmdba,asmper, asmadmin, racdba
+
+// download the software from the Oracle eDelivery portal: 
+Link: https://edelivery.oracle.com/osdc/faces/SoftwareDelivery
+OR 
+wget script: https://github.com/ada4sh/Oracle_scripts/blob/main/OCI/download_oracle19c_db_software_wget.sh
+- make sure the script is up to date; recommended to get new wget script whenever needed instead of using an old one; might throw a "403 Forbidden" error for older wget script when you try to run it.
+
+- download as Oracle user and Change the permission for the download_oracle19c_db_software_wget.sh file: 
+[oracle@MSI software]$ chmod 744 download_oracle19c_db_software_wget
+
+- give Oracle credentials for SSO username and password after running the .sh script and the downlaod should begin 
+
+- once the download is completed, some additonal setup is needed before we set environmental parameters 
+
+// set password for oracle user as root user:
+[root@MSI software]# passwd oracle
+Changing password for user oracle.
+New password:
+BAD PASSWORD: The password fails the dictionary check - it is based on a dictionary word
+Retype new password:
+passwd: all authentication tokens updated successfully.
+
+// create oracle home directories before installation:
+[root@MSI software]# mkdir -p /u01/app/oracle/product/19c/dbhome_1
+[root@MSI software]# mkdir -p /u02/oradata
+
+// give necessary permissions to the directories:
+[root@MSI software]# chown -R oracle:oinstall /u01 /u02
+[root@MSI software]# chmod -R 775 /u01 /u02
+
+// create a scripts directory:
+[root@MSI /]# mkdir /home/oracle/scripts
+
+// create an environment (env) file: 
+[root@MSI scripts]# cat /home/oracle/scripts/setEnv.sh
+# Oracle Settings
+export TMP=/tmp
+export TMPDIR=$TMP
+
+export ORACLE_HOSTNAME=ol8-19.localdomain
+export ORACLE_UNQNAME=cdb1
+export ORACLE_BASE=/u01/app/oracle
+export ORACLE_HOME=$ORACLE_BASE/product/19c/dbhome_1
+export ORA_INVENTORY=/u01/app/oraInventory
+export ORACLE_SID=cdb1
+export PDB_NAME=pdb1
+export DATA_DIR=/u02/oradata
+
+export PATH=/usr/sbin:/usr/local/bin:\$PATH
+export PATH=$ORACLE_HOME/bin:$PATH
+
+export LD_LIBRARY_PATH=$ORACLE_HOME/lib:/lib:/usr/lib
+export CLASSPATH=$ORACLE_HOME/jlib:$ORACLE_HOME/rdbms/jlib
+
+// add reference to setEnv.sh at the end of the .bash_profile file so that env params are set when oracle user logs in: 
+[root@MSI scripts]# echo ". /home/oracle/scripts/setEnv.sh" >> /home/oracle/.bash_profile
+
+// create startup and shutdown service scripts: 
+[root@MSI scripts]# cat /home/oracle/scripts/start_all.sh
+#!/bin/bash
+. /home/oracle/scripts/setEnv.sh
+export ORAENV_ASK=NO
+. oraenv
+export ORAENV_ASK=YES
+dbstart $ORACLE_HOME
+
+[root@MSI scripts]# cat /home/oracle/scripts/stop_all.sh
+#!/bin/bash
+. /home/oracle/scripts/setEnv.sh
+export ORAENV_ASK=NO
+. oraenv
+export ORAENV_ASK=YES
+dbshut $ORACLE_HOME
+
+// give appropriate permissions to these scripts: 
+[root@MSI scripts]# chown -R oracle:oinstall /home/oracle/scripts
+[root@MSI scripts]# chmod 744 /home/oracle/scripts/*.sh
+
+// Time to install software [V982063-01.zip]
+// unzip the software file in the ORACLE_HOME location: 
+[oracle@MSI software]$ cd $ORACLE_HOME
+[oracle@MSI dbhome_1]$ unzip -oq /u01/software/V982063-01.zip
+
+// export this parameter to make the installed assume Oralce linux 7 to avoid any installation issues 
+[oracle@MSI dbhome_1]$ export CV_ASSUME_DISTID=OEL7.6
+
+// run the runinstaller to install the db software
+[oracle@MSI dbhome_1]$
+./runInstaller -ignorePrereq -waitforcompletion -silent                        \
+    -responseFile ${ORACLE_HOME}/install/response/db_install.rsp               \
+    oracle.install.option=INSTALL_DB_SWONLY                                    \
+    ORACLE_HOSTNAME=${ORACLE_HOSTNAME}                                         \
+    UNIX_GROUP_NAME=oinstall                                                   \
+    INVENTORY_LOCATION=${ORA_INVENTORY}                                        \
+    SELECTED_LANGUAGES=en,en_GB                                                \
+    ORACLE_HOME=${ORACLE_HOME}                                                 \
+    ORACLE_BASE=${ORACLE_BASE}                                                 \
+    oracle.install.db.InstallEdition=EE                                        \
+    oracle.install.db.OSDBA_GROUP=dba                                          \
+    oracle.install.db.OSBACKUPDBA_GROUP=dba                                    \
+    oracle.install.db.OSDGDBA_GROUP=dba                                        \
+    oracle.install.db.OSKMDBA_GROUP=dba                                        \
+    oracle.install.db.OSRACDBA_GROUP=dba                                       \
+    SECURITY_UPDATES_VIA_MYORACLESUPPORT=false                                 \
+    DECLINE_SECURITY_UPDATES=true
+
+// run these scripts as root user once run installer is done:
+[root@MSI ~]# /u01/app/oraInventory/orainstRoot.sh
+Changing permissions of /u01/app/oraInventory.
+Adding read,write permissions for group.
+Removing read,write,execute permissions for world.
+
+Changing groupname of /u01/app/oraInventory to oinstall.
+The execution of the script is complete.
+
+[root@MSI ~]# /u01/app/oracle/product/19c/dbhome_1/root.sh
+Check /u01/app/oracle/product/19c/dbhome_1/install/root_MSI_2024-08-23_13-16-23-997473743.log for the output of root script
+
+// perform a check:
+[oracle@MSI ~]$ sqlplus
+SQL*Plus: Release 19.0.0.0.0 - Production on Fri Aug 23 13:18:28 2024
+Version 19.3.0.0.0
+Copyright (c) 1982, 2019, Oracle.  All rights reserved.
+Enter user-name: / as sysdba
+Connected to an idle instance.
+SQL> exit
